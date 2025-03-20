@@ -1,4 +1,4 @@
-liboqs
+liboqs - GH Action Test
 ======================
 
 [![Main Branch Tests](https://github.com/open-quantum-safe/liboqs/actions/workflows/commit-to-main.yml/badge.svg)](https://github.com/open-quantum-safe/liboqs/actions/workflows/commit-to-main.yml)
