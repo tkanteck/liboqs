@@ -12,10 +12,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: noble-sha3-avx512vl
+          - name: noble-no-sha3-avx512vl
             runner: ubuntu-latest
             container: openquantumsafe/ci-ubuntu-latest:latest
-            CMAKE_ARGS: -DOQS_USE_SHA3_AVX512VL=ON
+            CMAKE_ARGS: -DOQS_USE_SHA3_AVX512VL=OFF
             PYTEST_ARGS: --ignore=tests/test_leaks.py --ignore=tests/test_kat_all.py
     runs-on: ${{ matrix.runner }}
     container:
@@ -28,7 +28,59 @@ jobs:
       - name: Build
         run: ninja
         working-directory: build
+      - name: Check the library artifacts
+        if: matrix.name == 'jammy-std-openssl3-dlopen'
+        run: |
+          nm -gu lib/liboqs.so | sed -n 's/^[[:space:]]*[Uw] \([^_].*\)/\1/p' > undefined-syms.txt &&
+          ! (grep '^\(CRYPTO\|ERR\|EVP\|OPENSSL\|RAND\)_' undefined-syms.txt)
+        working-directory: build
       - name: Run tests
         timeout-minutes: 60
-        run: ./tests/test_sig ML-DSA-65
+        run: mkdir -p tmp && python3 -m pytest --verbose --ignore=tests/test_code_conventions.py --numprocesses=auto ${{ matrix.PYTEST_ARGS }}
+      - name: Package .deb
+        if: matrix.name == 'jammy-std-openssl3'
+        run: cpack
+        working-directory: build
+      - name: Retain .deb file
+        if: matrix.name == 'jammy-std-openssl3'
+        uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # pin@v4
+        with:
+          name: liboqs-openssl3-shared-x64
+          path: build/*.deb
+      - name: Check STD algorithm and alias
+        if: matrix.name == 'jammy-std-openssl3'
+        run: 'tests/dump_alg_info | grep -zoP "ML-DSA-44:\n    isnull: false" && tests/dump_alg_info | grep -zoP "ML-KEM-512:\n    isnull: false"'
+        working-directory: build
+
+  linux_x86_emulated:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: icelake-sha3-avx512vl-on
+            ARCH: -icl
+            CMAKE_ARGS: -DOQS_USE_SHA3_AVX512VL=ON
+          - name: icelake-sha3-avx512vl-off
+            ARCH: -icl
+            CMAKE_ARGS: -DOQS_USE_SHA3_AVX512VL=OFF
+          - name: braodwell-sha3-avx512vl-off
+            ARCH: -bdw
+            CMAKE_ARGS: -DOQS_USE_SHA3_AVX512VL=ON
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # pin@v4
+      - name: Download Intel SDE
+        run: wget -O sde.tar.xz https://downloadmirror.intel.com/850782/sde-external-9.53.0-2025-03-16-lin.tar.xz
+      - name: Extract SDE
+        run: mkdir sde && tar -xf sde.tar.xz -C sde --strip-components=1
+      - name: Add SDE to PATH
+        run: echo "$(pwd)/sde" >> $GITHUB_PATH
+      - name: Configure
+        run: mkdir build && cd build && cmake -GNinja ${{ matrix.CMAKE_ARGS }} .. && cmake -LA -N ..
+      - name: Build
+        run: ninja
+        working-directory: build
+      - name: Run tests
+        run: sde64 ${{ matrix.ARCH }} -- ./tests/test_sig ML-DSA-65
         working-directory: build
