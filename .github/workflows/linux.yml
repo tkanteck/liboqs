@@ -89,5 +89,19 @@ jobs:
       - name: Build
         run: ninja
         working-directory: build
+      - name: Check SHA3 implementation
+        run: |
+          # Check output of test_hash to see what SHA3 being used
+          sde64 ${{ matrix.ARCH }} -- ./test_hash || true
       - name: Run tests
-        run: mkdir -p tmp && sde64 ${{ matrix.ARCH }} -- python3 -m pytest --verbose --ignore=tests/test_code_conventions.py --numprocesses=auto ${{ matrix.PYTEST_ARGS }}
+        run: |
+          # Testing with SDE is slow - only run a subset of tests
+          mkdir -p tmp && sde64 ${{ matrix.ARCH }} -- python3 -m pytest --verbose --numprocesses=auto \
+            tests/test_hash.py::test_sha3 \
+            tests/test_kat.py::test_kem[ML-KEM-512] \
+            tests/test_kat.py::test_kem[ML-KEM-768] \
+            tests/test_kat.py::test_kem[ML-KEM-1024] \
+            tests/test_kat.py::test_sig[ML-DSA-44] \
+            tests/test_kat.py::test_sig[ML-DSA-65] \
+            tests/test_kat.py::test_sig[ML-DSA-87] \
+            tests/test_acvp_vectors.py
