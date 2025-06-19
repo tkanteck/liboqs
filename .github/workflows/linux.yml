@@ -85,9 +85,9 @@ jobs:
       - name: Add SDE to PATH
         run: echo "$(pwd)/sde" >> $GITHUB_PATH
       - name: Configure
-        run: mkdir build && cd build && sde64 ${{ matrix.ARCH }} -- cmake -GNinja ${{ matrix.CMAKE_ARGS }} .. && cmake -LA -N ..
+        run: mkdir build && cd build && cmake -GNinja ${{ matrix.CMAKE_ARGS }} .. && cmake -LA -N ..
       - name: Build
-        run: sde64 ${{ matrix.ARCH }} -- ninja
+        run: ninja
         working-directory: build
       - name: Run tests
         run: mkdir -p tmp && sde64 ${{ matrix.ARCH }} -- python3 -m pytest --verbose --ignore=tests/test_code_conventions.py --numprocesses=auto ${{ matrix.PYTEST_ARGS }}
