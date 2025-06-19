@@ -60,46 +60,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-            # test on various microarchitectures
-          - name: icelake-sha3
-            ARCH: -icl # AVX512
-          - name: braodwell-sha3
-            ARCH: -bdw # AVX2
-          - name: sandbridge-sha3
-            ARCH: -snb # AVX
-          - name: tremont-sha3
-            ARCH: -tnt # SSE
+          - name: avx512-ml-kem_ml-dsa
+            SDE_ARCH: -skx
+            CMAKE_ARGS: -DOQS_MINIMAL_BUILD="KEM_ml_kem_512;KEM_ml_kem_768;KEM_ml_kem_1024;SIG_ml_dsa_44;SIG_ml_dsa_65;SIG_ml_dsa_87
+            PYTEST_ARGS: --ignore=tests/test_leaks.py --ignore=tests/test_kat_all.py
     env:
       SDE_URL: https://downloadmirror.intel.com/850782/sde-external-9.53.0-2025-03-16-lin.tar.xz
-
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # pin@v4
-      - name: Download Intel SDE
-        run: wget -O sde.tar.xz "$SDE_URL"
-      - name: Extract SDE
-        run: mkdir sde && tar -xf sde.tar.xz -C sde --strip-components=1
-      - name: Add SDE to PATH
-        run: echo "$(pwd)/sde" >> $GITHUB_PATH
+      - name: Setup Intel SDE
+        run: |
+          wget -O sde.tar.xz "$SDE_URL" && \
+          mkdir sde && tar -xf sde.tar.xz -C sde --strip-components=1 && \
+          echo "$(pwd)/sde" >> $GITHUB_PATH
       - name: Configure
-        run: mkdir build && cd build && cmake -GNinja .. && cmake -LA -N ..
+        run: mkdir build && cd build && cmake -GNinja ${{ matrix.CMAKE_ARGS }} .. && cmake -LA -N ..
       - name: Build
         run: ninja
         working-directory: build
-      - name: Check SHA3 implementation
-        run: |
-          # Check output of test_hash to see what SHA3 being used
-          sde64 ${{ matrix.ARCH }} -- ./tests/test_hash || true
-        working-directory: build
-      - name: Run SHA3 based tests
-        run: |
-          # Testing with SDE is slow - only run a subset of tests
-          mkdir -p tmp && sde64 ${{ matrix.ARCH }} -- python3 -m pytest --verbose --numprocesses=auto \
-            tests/test_hash.py::test_sha3 \
-            tests/test_kat.py::test_kem[ML-KEM-512] \
-            tests/test_kat.py::test_kem[ML-KEM-768] \
-            tests/test_kat.py::test_kem[ML-KEM-1024] \
-            tests/test_kat.py::test_sig[ML-DSA-44] \
-            tests/test_kat.py::test_sig[ML-DSA-65] \
-            tests/test_kat.py::test_sig[ML-DSA-87] \
-            tests/test_acvp_vectors.py
+      - name: Run tests
+        timeout-minutes: 60
+        run: mkdir -p tmp && sde64 ${{ matrix.SDE_ARCH }} python3 -m pytest --verbose --ignore=tests/test_code_conventions.py --numprocesses=auto ${{ matrix.PYTEST_ARGS }}
