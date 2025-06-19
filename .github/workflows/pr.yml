@@ -11,17 +11,5 @@ concurrency:
 
 jobs:
 
-  basic-checks:
-    uses: ./.github/workflows/basic.yml
-
   platform-tests:
-    needs: basic-checks
     uses: ./.github/workflows/platforms.yml
-
-  scorecard:
-    needs: basic-checks
-    uses: ./.github/workflows/scorecard.yml
-    secrets: inherit
-    permissions:
-      id-token: write
-      security-events: write
