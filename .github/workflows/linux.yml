@@ -60,18 +60,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: icelake-sha3-avx512vl-on
-            ARCH: -icl
-            CMAKE_ARGS: -DOQS_USE_SHA3_AVX512VL=ON
-            PYTEST_ARGS: --ignore=tests/test_leaks.py --ignore=tests/test_kat_all.py
-          - name: icelake-sha3-avx512vl-off
-            ARCH: -icl
-            CMAKE_ARGS: -DOQS_USE_SHA3_AVX512VL=OFF
-            PYTEST_ARGS: --ignore=tests/test_leaks.py --ignore=tests/test_kat_all.py
-          - name: braodwell-sha3-avx512vl-off
-            ARCH: -bdw
-            CMAKE_ARGS: -DOQS_USE_SHA3_AVX512VL=ON
-            PYTEST_ARGS: --ignore=tests/test_leaks.py --ignore=tests/test_kat_all.py
+            # test on various microarchitectures
+          - name: icelake-sha3
+            ARCH: -icl # AVX512
+          - name: braodwell-sha3
+            ARCH: -bdw # AVX2
+          - name: sandbridge-sha3
+            ARCH: -snb # AVX
+          - name: tremont-sha3
+            ARCH: -tnt # SSE
     env:
       SDE_URL: https://downloadmirror.intel.com/850782/sde-external-9.53.0-2025-03-16-lin.tar.xz
 
@@ -85,16 +82,16 @@ jobs:
       - name: Add SDE to PATH
         run: echo "$(pwd)/sde" >> $GITHUB_PATH
       - name: Configure
-        run: mkdir build && cd build && cmake -GNinja ${{ matrix.CMAKE_ARGS }} .. && cmake -LA -N ..
+        run: mkdir build && cd build && cmake -GNinja .. && cmake -LA -N ..
       - name: Build
         run: ninja
         working-directory: build
       - name: Check SHA3 implementation
         run: |
           # Check output of test_hash to see what SHA3 being used
-          sde64 ${{ matrix.ARCH }} -- ./test_hash || true
+          sde64 ${{ matrix.ARCH }} -- ./tests/test_hash || true
         working-directory: build
-      - name: Run tests
+      - name: Run SHA3 based tests
         run: |
           # Testing with SDE is slow - only run a subset of tests
           mkdir -p tmp && sde64 ${{ matrix.ARCH }} -- python3 -m pytest --verbose --numprocesses=auto \
