@@ -81,4 +81,6 @@ jobs:
         working-directory: build
       - name: Run tests
         timeout-minutes: 60
-        run: mkdir -p tmp && sde64 ${{ matrix.SDE_ARCH }} python3 -m pytest --verbose --ignore=tests/test_code_conventions.py --numprocesses=auto ${{ matrix.PYTEST_ARGS }}
+        run: |
+          mkdir -p tmp && sde64 ${{ matrix.SDE_ARCH }} -- \
+          python3 -m pytest --verbose --ignore=tests/test_code_conventions.py --numprocesses=auto ${{ matrix.PYTEST_ARGS }}
