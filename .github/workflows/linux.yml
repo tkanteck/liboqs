@@ -54,6 +54,8 @@ jobs:
 
   linux_x86_emulated:
     runs-on: ubuntu-latest
+    container:
+      image: openquantumsafe/ci-ubuntu-latest:latest
     strategy:
       fail-fast: false
       matrix:
@@ -70,11 +72,14 @@ jobs:
             ARCH: -bdw
             CMAKE_ARGS: -DOQS_USE_SHA3_AVX512VL=ON
             PYTEST_ARGS: --ignore=tests/test_leaks.py --ignore=tests/test_kat_all.py
+    env:
+      SDE_URL: https://downloadmirror.intel.com/850782/sde-external-9.53.0-2025-03-16-lin.tar.xz
+
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # pin@v4
       - name: Download Intel SDE
-        run: wget -O sde.tar.xz https://downloadmirror.intel.com/850782/sde-external-9.53.0-2025-03-16-lin.tar.xz
+        run: wget -O sde.tar.xz "$SDE_URL"
       - name: Extract SDE
         run: mkdir sde && tar -xf sde.tar.xz -C sde --strip-components=1
       - name: Add SDE to PATH
