@@ -93,6 +93,7 @@ jobs:
         run: |
           # Check output of test_hash to see what SHA3 being used
           sde64 ${{ matrix.ARCH }} -- ./test_hash || true
+        working-directory: build
       - name: Run tests
         run: |
           # Testing with SDE is slow - only run a subset of tests
